@@ -19,6 +19,8 @@
       --glow: 0 0 30px rgba(124,58,237,0.25);
     }
 
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
       background: var(--bg);
       color: var(--text);
@@ -31,7 +33,6 @@
       overflow: hidden;
     }
 
-    /* Animated grid background */
     body::before {
       content: '';
       position: fixed;
@@ -49,7 +50,6 @@
       100% { transform: translate(40px, 40px); }
     }
 
-    /* Glowing orbs */
     body::after {
       content: '';
       position: fixed;
@@ -100,14 +100,40 @@
       font-size: 0.75rem;
       letter-spacing: 3px;
       text-transform: uppercase;
-      margin-bottom: 48px;
+      margin-bottom: 32px;
     }
 
-    .search-wrapper {
-      position: relative;
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 0;
       margin-bottom: 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 4px;
     }
 
+    .tab {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      font-family: 'Space Mono', monospace;
+      font-size: 0.75rem;
+      letter-spacing: 1px;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+
+    .tab.active {
+      background: var(--accent);
+      color: white;
+    }
+
+    /* Search box */
     .search-box {
       display: flex;
       background: var(--surface);
@@ -115,6 +141,7 @@
       border-radius: 16px;
       overflow: hidden;
       transition: border-color 0.3s, box-shadow 0.3s;
+      margin-bottom: 20px;
     }
 
     .search-box:focus-within {
@@ -130,7 +157,7 @@
       user-select: none;
     }
 
-    #urlInput {
+    #mainInput {
       flex: 1;
       background: transparent;
       border: none;
@@ -141,7 +168,7 @@
       padding: 18px 12px;
     }
 
-    #urlInput::placeholder { color: var(--muted); }
+    #mainInput::placeholder { color: var(--muted); }
 
     #goBtn {
       background: linear-gradient(135deg, var(--accent), #5b21b6);
@@ -165,7 +192,7 @@
       gap: 10px;
       flex-wrap: wrap;
       justify-content: center;
-      margin-bottom: 40px;
+      margin-bottom: 32px;
     }
 
     .shortcut {
@@ -187,6 +214,7 @@
       background: rgba(6,182,212,0.05);
     }
 
+    /* Frame */
     .frame-container {
       display: none;
       position: fixed;
@@ -231,7 +259,6 @@
       font-family: 'Space Mono', monospace;
       font-size: 0.75rem;
       padding: 6px 12px;
-      outline: none;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -246,7 +273,6 @@
     .status {
       font-size: 0.7rem;
       color: var(--muted);
-      margin-top: 32px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -272,21 +298,29 @@
   <div class="logo">MiProxy</div>
   <div class="tagline">Tu navegador dentro del navegador</div>
 
-  <div class="search-wrapper">
-    <div class="search-box">
-      <span class="prefix">🌐</span>
-      <input id="urlInput" type="text" placeholder="ejemplo.com o https://juego.io" autocomplete="off" spellcheck="false"/>
-      <button id="goBtn" onclick="navigate()">ENTRAR →</button>
-    </div>
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" id="tabSearch" onclick="setMode('search')">🔍 BUSCAR</button>
+    <button class="tab" id="tabUrl" onclick="setMode('url')">🌐 IR A URL</button>
   </div>
 
+  <!-- Input -->
+  <div class="search-box">
+    <span class="prefix" id="inputPrefix">🔍</span>
+    <input id="mainInput" type="text" placeholder="Busca algo en DuckDuckGo..." autocomplete="off" spellcheck="false"/>
+    <button id="goBtn" onclick="go()">IR →</button>
+  </div>
+
+  <!-- Shortcuts -->
   <div class="shortcuts">
-    <a class="shortcut" onclick="loadSite('https://www.google.com')">Google</a>
-    <a class="shortcut" onclick="loadSite('https://www.youtube.com')">YouTube</a>
-    <a class="shortcut" onclick="loadSite('https://www.coolmathgames.com')">CoolMath</a>
-    <a class="shortcut" onclick="loadSite('https://poki.com')">Poki</a>
-    <a class="shortcut" onclick="loadSite('https://www.miniclip.com')">Miniclip</a>
-    <a class="shortcut" onclick="loadSite('https://www.addictinggames.com')">Addicting Games</a>
+    <a class="shortcut" onclick="loadSite('https://poki.com')">🎮 Poki</a>
+    <a class="shortcut" onclick="loadSite('https://www.coolmathgames.com')">🧮 CoolMath</a>
+    <a class="shortcut" onclick="loadSite('https://www.miniclip.com')">🕹️ Miniclip</a>
+    <a class="shortcut" onclick="loadSite('https://www.addictinggames.com')">🎯 Addicting</a>
+    <a class="shortcut" onclick="loadSite('https://www.youtube.com')">▶️ YouTube</a>
+    <a class="shortcut" onclick="loadSite('https://www.roblox.com')">🟥 Roblox</a>
+    <a class="shortcut" onclick="loadSite('https://www.friv.com')">🌈 Friv</a>
+    <a class="shortcut" onclick="loadSite('https://krunker.io')">🔫 Krunker</a>
   </div>
 
   <div class="status">
@@ -305,20 +339,45 @@
 </div>
 
 <script>
-  const input = document.getElementById('urlInput');
+  const mainInput = document.getElementById('mainInput');
   const frameContainer = document.getElementById('frameContainer');
   const siteFrame = document.getElementById('siteFrame');
   const frameUrl = document.getElementById('frameUrl');
   const home = document.getElementById('home');
+  const inputPrefix = document.getElementById('inputPrefix');
 
-  input.addEventListener('keydown', e => { if (e.key === 'Enter') navigate(); });
+  let mode = 'search'; // 'search' or 'url'
 
-  function navigate() {
-    const val = input.value.trim();
+  function setMode(m) {
+    mode = m;
+    document.getElementById('tabSearch').classList.toggle('active', m === 'search');
+    document.getElementById('tabUrl').classList.toggle('active', m === 'url');
+    if (m === 'search') {
+      mainInput.placeholder = 'Busca algo en DuckDuckGo...';
+      inputPrefix.textContent = '🔍';
+    } else {
+      mainInput.placeholder = 'ejemplo.com o https://juego.io';
+      inputPrefix.textContent = '🌐';
+    }
+    mainInput.focus();
+  }
+
+  mainInput.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+
+  function go() {
+    const val = mainInput.value.trim();
     if (!val) return;
-    let url = val;
-    if (!url.startsWith('http://') && !url.startsWith('https://')) url = 'https://' + url;
-    loadSite(url);
+
+    if (mode === 'search') {
+      // Send to DuckDuckGo
+      const ddgUrl = 'https://duckduckgo.com/?q=' + encodeURIComponent(val);
+      loadSite(ddgUrl);
+    } else {
+      // Go directly to URL
+      let url = val;
+      if (!url.startsWith('http://') && !url.startsWith('https://')) url = 'https://' + url;
+      loadSite(url);
+    }
   }
 
   function loadSite(url) {
@@ -333,6 +392,7 @@
     siteFrame.src = 'about:blank';
     frameContainer.classList.remove('active');
     home.style.display = '';
+    mainInput.value = '';
   }
 </script>
 
