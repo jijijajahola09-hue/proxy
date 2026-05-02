@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MiProxy</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0f;
+      --surface: #111118;
+      --border: #1e1e2e;
+      --accent: #7c3aed;
+      --accent2: #06b6d4;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --glow: 0 0 30px rgba(124,58,237,0.25);
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Space Mono', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* Animated grid background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(124,58,237,0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(124,58,237,0.05) 1px, transparent 1px);
+      background-size: 40px 40px;
+      animation: gridMove 8s linear infinite;
+      pointer-events: none;
+    }
+
+    @keyframes gridMove {
+      0% { transform: translate(0,0); }
+      100% { transform: translate(40px, 40px); }
+    }
+
+    /* Glowing orbs */
+    body::after {
+      content: '';
+      position: fixed;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(124,58,237,0.12) 0%, transparent 70%);
+      top: -200px;
+      left: -200px;
+      pointer-events: none;
+      animation: orbFloat 10s ease-in-out infinite alternate;
+    }
+
+    @keyframes orbFloat {
+      0% { transform: translate(0,0); }
+      100% { transform: translate(100px, 80px); }
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      width: 90%;
+      max-width: 680px;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .logo {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(2.5rem, 8vw, 4.5rem);
+      font-weight: 800;
+      letter-spacing: -2px;
+      background: linear-gradient(135deg, #7c3aed, #06b6d4, #7c3aed);
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: shimmer 3s linear infinite;
+      margin-bottom: 8px;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: 0% center; }
+      100% { background-position: 200% center; }
+    }
+
+    .tagline {
+      color: var(--muted);
+      font-size: 0.75rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-bottom: 48px;
+    }
+
+    .search-wrapper {
+      position: relative;
+      margin-bottom: 20px;
+    }
+
+    .search-box {
+      display: flex;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+
+    .search-box:focus-within {
+      border-color: var(--accent);
+      box-shadow: var(--glow);
+    }
+
+    .prefix {
+      padding: 18px 0 18px 20px;
+      color: var(--muted);
+      font-size: 0.85rem;
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    #urlInput {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-family: 'Space Mono', monospace;
+      font-size: 0.9rem;
+      padding: 18px 12px;
+    }
+
+    #urlInput::placeholder { color: var(--muted); }
+
+    #goBtn {
+      background: linear-gradient(135deg, var(--accent), #5b21b6);
+      border: none;
+      color: white;
+      font-family: 'Space Mono', monospace;
+      font-weight: 700;
+      font-size: 0.85rem;
+      padding: 18px 28px;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: opacity 0.2s, transform 0.1s;
+      white-space: nowrap;
+    }
+
+    #goBtn:hover { opacity: 0.9; transform: scale(1.02); }
+    #goBtn:active { transform: scale(0.98); }
+
+    .shortcuts {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 40px;
+    }
+
+    .shortcut {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .shortcut:hover {
+      border-color: var(--accent2);
+      color: var(--accent2);
+      background: rgba(6,182,212,0.05);
+    }
+
+    .frame-container {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      flex-direction: column;
+      background: var(--bg);
+    }
+
+    .frame-container.active { display: flex; }
+
+    .frame-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+
+    #backBtn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: 'Space Mono', monospace;
+      font-size: 0.75rem;
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    #backBtn:hover { border-color: var(--accent); color: var(--accent); }
+
+    #frameUrl {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--muted);
+      font-family: 'Space Mono', monospace;
+      font-size: 0.75rem;
+      padding: 6px 12px;
+      outline: none;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    #siteFrame {
+      flex: 1;
+      border: none;
+      width: 100%;
+    }
+
+    .status {
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-top: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #22c55e;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.8); }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container" id="home">
+  <div class="logo">MiProxy</div>
+  <div class="tagline">Tu navegador dentro del navegador</div>
+
+  <div class="search-wrapper">
+    <div class="search-box">
+      <span class="prefix">🌐</span>
+      <input id="urlInput" type="text" placeholder="ejemplo.com o https://juego.io" autocomplete="off" spellcheck="false"/>
+      <button id="goBtn" onclick="navigate()">ENTRAR →</button>
+    </div>
+  </div>
+
+  <div class="shortcuts">
+    <a class="shortcut" onclick="loadSite('https://www.google.com')">Google</a>
+    <a class="shortcut" onclick="loadSite('https://www.youtube.com')">YouTube</a>
+    <a class="shortcut" onclick="loadSite('https://www.coolmathgames.com')">CoolMath</a>
+    <a class="shortcut" onclick="loadSite('https://poki.com')">Poki</a>
+    <a class="shortcut" onclick="loadSite('https://www.miniclip.com')">Miniclip</a>
+    <a class="shortcut" onclick="loadSite('https://www.addictinggames.com')">Addicting Games</a>
+  </div>
+
+  <div class="status">
+    <div class="dot"></div>
+    Proxy activo y listo
+  </div>
+</div>
+
+<!-- Frame viewer -->
+<div class="frame-container" id="frameContainer">
+  <div class="frame-bar">
+    <button id="backBtn" onclick="goHome()">← Inicio</button>
+    <div id="frameUrl">cargando...</div>
+  </div>
+  <iframe id="siteFrame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
+</div>
+
+<script>
+  const input = document.getElementById('urlInput');
+  const frameContainer = document.getElementById('frameContainer');
+  const siteFrame = document.getElementById('siteFrame');
+  const frameUrl = document.getElementById('frameUrl');
+  const home = document.getElementById('home');
+
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') navigate(); });
+
+  function navigate() {
+    const val = input.value.trim();
+    if (!val) return;
+    let url = val;
+    if (!url.startsWith('http://') && !url.startsWith('https://')) url = 'https://' + url;
+    loadSite(url);
+  }
+
+  function loadSite(url) {
+    const proxyUrl = '/proxy?url=' + encodeURIComponent(url);
+    frameUrl.textContent = url;
+    siteFrame.src = proxyUrl;
+    home.style.display = 'none';
+    frameContainer.classList.add('active');
+  }
+
+  function goHome() {
+    siteFrame.src = 'about:blank';
+    frameContainer.classList.remove('active');
+    home.style.display = '';
+  }
+</script>
+
+</body>
+</html>
