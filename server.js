@@ -12,7 +12,8 @@ app.get("/proxy", async (req, res) => {
   let targetUrl = req.query.url;
 
   if (!targetUrl) {
-    return res.status(400).json({ error: "No URL provided" });
+    // En vez de error, redirige al inicio
+    return res.redirect("/");
   }
 
   if (!targetUrl.startsWith("http://") && !targetUrl.startsWith("https://")) {
@@ -33,6 +34,31 @@ app.get("/proxy", async (req, res) => {
 
     const contentType = response.headers.get("content-type") || "";
 
+    // Imágenes, fuentes, videos — pasar directo sin tocar
+    if (
+      contentType.includes("image/") ||
+      contentType.includes("video/") ||
+      contentType.includes("audio/") ||
+      contentType.includes("font/") ||
+      contentType.includes("application/octet-stream")
+    ) {
+      const buffer = await response.buffer();
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Cache-Control", "public, max-age=86400");
+      return res.send(buffer);
+    }
+
+    // CSS y JS — pasar directo también
+    if (
+      contentType.includes("text/css") ||
+      contentType.includes("application/javascript") ||
+      contentType.includes("text/javascript")
+    ) {
+      const buffer = await response.buffer();
+      res.setHeader("Content-Type", contentType);
+      return res.send(buffer);
+    }
+
     if (contentType.includes("text/html")) {
       let html = await response.text();
 
@@ -50,7 +76,7 @@ app.get("/proxy", async (req, res) => {
   function toAbsolute(url) {
     if (!url) return null;
     url = url.trim();
-    if (url.startsWith("javascript:") || url.startsWith("mailto:") || url.startsWith("#") || url.startsWith("data:")) return null;
+    if (url.startsWith("javascript:") || url.startsWith("mailto:") || url.startsWith("#") || url.startsWith("data:") || url.startsWith("blob:")) return null;
     if (url.startsWith("http://") || url.startsWith("https://")) return url;
     if (url.startsWith("//")) return "https:" + url;
     if (url.startsWith("/")) return ORIGIN + url;
@@ -64,6 +90,16 @@ app.get("/proxy", async (req, res) => {
     if (!abs) return null;
     return PROXY_BASE + encodeURIComponent(abs);
   }
+
+  // Patch fetch para que imágenes carguen directo sin proxy
+  var origFetch = window.fetch;
+  window.fetch = function(url, opts) {
+    if (typeof url === "string" && (url.includes("duckduckgo.com") || url.startsWith("/"))) {
+      var abs = toAbsolute(url);
+      if (abs) url = PROXY_BASE + encodeURIComponent(abs);
+    }
+    return origFetch.call(this, url, opts);
+  };
 
   document.addEventListener("click", function(e) {
     var a = e.target.closest("a[href]");
@@ -96,13 +132,31 @@ app.get("/proxy", async (req, res) => {
 })();
 </script>`;
 
+      // Reescribir atributos estaticos
       html = html.replace(
-        /((?:src|href|action)\s*=\s*)(["'])([^"']*)\2/gi,
+        /((?:src|href|action|srcset)\s*=\s*)(["'])([^"']*)\2/gi,
         function(match, attr, quote, url) {
           var trimmed = url.trim();
-          if (!trimmed || trimmed.startsWith("data:") || trimmed.startsWith("javascript:") || trimmed.startsWith("#") || trimmed.startsWith("/proxy?url=")) {
+          if (!trimmed || trimmed.startsWith("data:") || trimmed.startsWith("javascript:") || trimmed.startsWith("#") || trimmed.startsWith("/proxy?url=") || trimmed.startsWith("blob:")) {
             return match;
           }
+
+          // srcset tiene formato especial "url tamaño, url tamaño"
+          if (attr.trim().toLowerCase() === "srcset=") {
+            var rewritten = trimmed.split(",").map(function(part) {
+              var pieces = part.trim().split(/\s+/);
+              var u = pieces[0];
+              var size = pieces[1] || "";
+              var abs;
+              if (u.startsWith("http://") || u.startsWith("https://")) abs = u;
+              else if (u.startsWith("//")) abs = "https:" + u;
+              else if (u.startsWith("/")) abs = baseOrigin + u;
+              else abs = u;
+              return "/proxy?url=" + encodeURIComponent(abs) + (size ? " " + size : "");
+            }).join(", ");
+            return attr + quote + rewritten + quote;
+          }
+
           var absolute;
           if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
             absolute = trimmed;
